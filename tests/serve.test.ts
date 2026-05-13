@@ -438,5 +438,53 @@ describe("serve.ts", () => {
             process.emit("SIGTERM" as any);
             await new Promise((resolve) => setTimeout(resolve, 100));
         });
+
+        it("should bind to 127.0.0.1 when --local is set", async () => {
+            const consoleLogMock = mock.fn();
+            mock.method(console, "log", consoleLogMock);
+
+            serverProcess = serveCommand({ port: testPort, version: "1.0.0", local: true });
+            baseUrl = `http://127.0.0.1:${testPort}`;
+
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
+            // 验证启动日志中包含 127.0.0.1（地址在"健康检查"日志行）
+            const healthCheckCall = consoleLogMock.mock.calls.find((call) => {
+                const args = call.arguments;
+                return args.some((arg: any) => typeof arg === "string" && arg.includes("健康检查"));
+            });
+
+            assert.ok(healthCheckCall, "应该有包含'健康检查'的日志");
+            const logOutput = healthCheckCall.arguments.join(" ");
+            assert.ok(logOutput.includes("127.0.0.1"), "启动日志应显示 127.0.0.1");
+
+            // 验证可以从 127.0.0.1 访问
+            const { statusCode } = await makeRequest("GET", "/health");
+            assert.equal(statusCode, 200);
+        });
+
+        it("should bind to all interfaces when --local is not set", async () => {
+            const consoleLogMock = mock.fn();
+            mock.method(console, "log", consoleLogMock);
+
+            serverProcess = serveCommand({ port: testPort, version: "1.0.0" });
+            baseUrl = `http://localhost:${testPort}`;
+
+            await new Promise((resolve) => setTimeout(resolve, 200));
+
+            // 验证启动日志中包含 localhost（地址在"健康检查"日志行）
+            const healthCheckCall = consoleLogMock.mock.calls.find((call) => {
+                const args = call.arguments;
+                return args.some((arg: any) => typeof arg === "string" && arg.includes("健康检查"));
+            });
+
+            assert.ok(healthCheckCall, "应该有包含'健康检查'的日志");
+            const logOutput = healthCheckCall.arguments.join(" ");
+            assert.ok(logOutput.includes("localhost") && !logOutput.includes("127.0.0.1"), "启动日志应显示 localhost 而非 127.0.0.1");
+
+            // 验证可以从 localhost 访问
+            const { statusCode } = await makeRequest("GET", "/health");
+            assert.equal(statusCode, 200);
+        });
     });
 });

@@ -10,6 +10,7 @@ export interface ServeOptions {
     port?: number;
     version?: string;
     apiKey?: string;
+    local?: boolean;
 }
 
 interface RenderRequest {
@@ -216,12 +217,14 @@ export async function serveCommand(options: ServeOptions) {
     app.use(errorHandler);
 
     return new Promise<void>((resolve, reject) => {
-        const server = app.listen(port, () => {
+        const host = options.local ? "127.0.0.1" : undefined;
+        const server = app.listen(port, host, () => {
+            const addr = options.local ? `http://127.0.0.1:${port}` : `http://localhost:${port}`;
             console.log(`文颜 Server 已启动，监听端口 ${port}`);
-            console.log(`健康检查：http://localhost:${port}/health`);
-            console.log(`鉴权探针：http://localhost:${port}/verify`);
-            console.log(`发布接口：POST http://localhost:${port}/publish`);
-            console.log(`上传接口：POST http://localhost:${port}/upload`);
+            console.log(`健康检查：${addr}/health`);
+            console.log(`鉴权探针：${addr}/verify`);
+            console.log(`发布接口：POST ${addr}/publish`);
+            console.log(`上传接口：POST ${addr}/upload`);
         });
 
         server.on("error", (err: any) => {
